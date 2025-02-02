@@ -23,7 +23,7 @@ namespace Homework_1.Models
 
         public override string? ToString()
         {
-            return Display;
+            return Display ?? string.Empty;
         }
 
         public Products()       //default constructor
@@ -35,11 +35,10 @@ namespace Homework_1.Models
         //how many are in inventory
         //price
         public double? Price { get; set; }      //to set and recieve the price of item
-        public int Quanity { get; set; }       //to set and recieve number of items
-
-        public int AmtInventory {  get; set; }
+        public int? Quanity { get; set; }       //to set and recieve number of items
+        
     }
-    
+
     /*public class Cart
     {
         //public int Size_Cart { get; set; }        //size of inventory

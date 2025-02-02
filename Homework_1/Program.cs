@@ -12,6 +12,9 @@ itemized receipt including the total of their purchase with 7% sales tax include
  */
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
+using System.Xml.Linq;
 using Homework_1.Models;
 using Library.eCommerce.Services;
 //models = data
@@ -21,13 +24,14 @@ namespace Homework_1
     {
         static void Main(string[] args)
         {
-            int lastKey = 0;    //for id kelp
+            //int lastKey = 0;    //for id kelp
 
             InventoryMenu();     //call menu
 
             char choice;
-            List<Products?> inventorylist = ProductsServiceProxy.Current.Products;
-            //make a service proxy for shopping car
+            List<Products?> inventorylist = ProductsServiceProxy.Current.Products;      //create stuff here
+            List<Cart?> shoppingCart = CartServiceProxy.Current.shoppingCart;
+            //make a service proxy for shopping cart
             do
             {
                 string? input = Console.ReadLine();
@@ -36,40 +40,15 @@ namespace Homework_1
                 {
                     case 'c':       //creates new item in inventory
                     case 'C':
-                        //Console.WriteLine("Choose 1 for add to inventory, 2 for add something to cart");
-
-                        //int Cchoice = int.Parse(Console.ReadLine() ?? "-1");
-                        
-                        //if (Cchoice == 1)
-                        //{
-                            Console.WriteLine("Name of item:");
-                            var name = Console.ReadLine();  //cin.getline
-                            var prod = new Products         //same as initalizing array
-                            {
-                                Id = ++lastKey,     //each Product object sets an Id, name, quanity,Price
-                                Name = name,
-                                Quanity = 0,        //have them do quanity when they enter it
-                                Price = 0.0,
-                            };
-                            inventorylist.Add(prod);
-
-                            UpdateQuanity(prod);        //my functions to change quanity and prices
-                            UpdatePrice(prod);
-                        //}
-                        //else if(Cchoice == 2)
-                        //{
-                        //    Console.WriteLine("Current inventory to choose from:");
-                        //    inventorylist.ForEach(Console.WriteLine);
-                        //    Console.WriteLine("Which item do you want to add to cart?");
-                        //    int choose = int.Parse(Console.ReadLine() ?? "-1");
-                        //    while (choose <= 0)
-                        //    {
-                        //        Console.WriteLine("Invalid number, which item do you want to add to cart?");
-                        //        choose = int.Parse(Console.ReadLine() ?? "-1");
-                        //    }
-                        //}
+                        Console.WriteLine("Enter name of product, quanity and price");  //find index
+                        ProductsServiceProxy.Current.AddOrUpdate(new Products
+                        {
+                            Name = Console.ReadLine(),
+                            Quanity = int.Parse(Console.ReadLine() ?? "-1"),   //read in, convert string to int
+                            Price = double.Parse(Console.ReadLine() ?? "-1"),   //read in, convert string to int
+                        });
                         break;
-                    
+                                   
                     case 'r':       //reads what we have in inventory
                     case 'R':
                         inventorylist.ForEach(Console.WriteLine);
@@ -80,45 +59,99 @@ namespace Homework_1
                     case 'u':       //can update an inventory item
                     case 'U':
                         Console.WriteLine("Which product do you want to update?");  //find index
-                        int updateselect = int.Parse(Console.ReadLine() ?? "-1");  //parse is static cast for strings
-
-                        Console.WriteLine("1. Replace item completely");    //give options for what to change
-                        Console.WriteLine("2. Change item's price");
-                        Console.WriteLine("3. Change quanity of item in inventory");
-                        
-                        int UpdChoice = int.Parse(Console.ReadLine() ?? "-1");
-                        var selectedProductupdate = inventorylist[updateselect - 1];    //-1 so indexs match
-                        
-                        if (UpdChoice == 1)
+                        int select = int.Parse(Console.ReadLine() ?? "-1");  //parse is static cast for strings
+                        var selectedProductupdate = inventorylist[select - 1];    //-1 so indexs match
+                        Console.WriteLine("Enter name of product, quanity and price");
+                        if (selectedProductupdate != null)
                         {
-                            Console.WriteLine("Name of item:");
-                            //var selectedProductupdate = inventorylist[updateselect - 1];    //-1 so indexs match
-                            if (selectedProductupdate != null)
-                                selectedProductupdate.Name = Console.ReadLine() ?? "Error";
-
-                            UpdateQuanity(selectedProductupdate);
-                            UpdatePrice(selectedProductupdate);
-                        }
-                        else if(UpdChoice==2)
-                        {
-                            UpdatePrice(selectedProductupdate);
-                        }
-                        else if(UpdChoice==3)
-                        {
-                            UpdateQuanity(selectedProductupdate);
+                            selectedProductupdate.Name = Console.ReadLine() ?? "Error";
+                            selectedProductupdate.Quanity = int.Parse(Console.ReadLine());
+                            selectedProductupdate.Price = double.Parse(Console.ReadLine());
+                            ProductsServiceProxy.Current.AddOrUpdate(selectedProductupdate);
                         }
                             break;
                     
                     case 'd':       //delete an inventory item
                     case 'D':
                         Console.WriteLine("Which product do you want to delete?");
-                        int deleteselect = int.Parse(Console.ReadLine() ?? "-1");
-                        var selectedProductdelete = inventorylist[deleteselect - 1];    //-1 so indexs match
+                        /*int delete*/select = int.Parse(Console.ReadLine() ?? "-1");
+                        select= select - 1;
+                        ProductsServiceProxy.Current.Delete(select);
+                        var selectedProductdelete = inventorylist[select];    //-1 so indexs match
                         inventorylist.Remove(selectedProductdelete);    //removes index 
                         break;
+
+                    case 'A':           //add to cart
+                    case 'a':
+                        Console.WriteLine("Which item would you like to add?");
+                        inventorylist.ForEach(Console.WriteLine);                   //print out what we have
+                        
+                        var itemSelect = int.Parse(Console.ReadLine() ?? "-1");     //get item they want to get rid of
+                        var thing = inventorylist.FirstOrDefault(p => p?.Id == itemSelect);
+                        
+                        Console.WriteLine("How many would you like to buy?");
+                        var numBuy = int.Parse(Console.ReadLine() ?? "-1");
+                        
+                        if(thing!=null)
+                        {
+                            ProductsServiceProxy.Current.AddOrUpdate(
+                                CartServiceProxy.Current.AddOrUpdate(new Cart       //adding
+                                {                   //set what we need
+                                    Name = thing.Name,
+                                    Price = thing.Price,
+                                    Quanity = 0
+                                }, thing, numBuy));
+                        }
+
+
+                        break;
                     
-                    case 'q':          //quit program
+                    case 'S':           //show cart
+                    case 's':
+                        shoppingCart.ForEach(Console.WriteLine);
+                        break;
+
+                    case 'P':       //update carts quanity of an item
+                    case 'p':
+                        Console.WriteLine("Which item would you like to update");
+                        shoppingCart.ForEach(Console.WriteLine);
+                        select = int.Parse(Console.ReadLine() ?? "-1");
+                        selectedProductupdate = inventorylist.FirstOrDefault(p => p?.Id == select);         //get thing
+                        var selectedCart = shoppingCart.FirstOrDefault(p => p?.Name == selectedProductupdate.Name);
+
+                        if(selectedCart!=null)      //go into shopping cart and update
+                        {
+                            Console.WriteLine("What do you want new quanity to be?");
+                            select = int.Parse(Console.ReadLine() ?? "-1");
+
+                            ProductsServiceProxy.Current.AddOrUpdate(
+                                CartServiceProxy.Current.AddOrUpdate(
+                                    selectedCart, selectedProductupdate, select));
+                        }
+                        else
+                        {
+                            Console.WriteLine("This doesn't exist!");
+                        }
+                        break;
+
+                    case 'E':           //for returning
+                    case 'e':
+                        Console.WriteLine("Which item do you want to return to inventory?");
+                        select = int.Parse (Console.ReadLine() ?? "-1");
+                        selectedCart = shoppingCart.FirstOrDefault(p => p?.Id == select);       //find stuff, then return it
+                        selectedProductdelete = inventorylist.FirstOrDefault(p => p?.Name == selectedCart?.Name);
+                        
+                        if(selectedCart != null)
+                        {
+                            ProductsServiceProxy.Current.AddOrUpdate(
+                                CartServiceProxy.Current.Return(select, inventorylist));
+                        }
+
+                        break;
+                    
+                    case 'q':          //quit program and checkout
                     case 'Q':
+                        CartServiceProxy.Current.CheckOut();
                         break;
 
                     case 'M':
@@ -131,52 +164,26 @@ namespace Homework_1
                         break;
                 }
             } while (choice != 'Q' && choice != 'q');
-
+            
+            
             Console.ReadLine();
         }
-
-        static void InventoryMenu()
+        static void InventoryMenu()     //for simplicity
         {
             Console.WriteLine("Welcome to your inventory!");
             Console.WriteLine("C.   Create new inventory item");
             Console.WriteLine("R.   Read all inventory items");
             Console.WriteLine("U.   Update all inventory items");
             Console.WriteLine("D.   Delete an inventory item");
+            Console.WriteLine();
+            Console.WriteLine("A.   Add inventory item to cart");
+            Console.WriteLine("S.   Read all shopping cart item");
+            Console.WriteLine("P.   Update quanity in shopping cart");
+            Console.WriteLine("E.   Delete an item from shopping cart");
+            Console.WriteLine();
             Console.WriteLine("Q.   Quit and check out");
-            Console.WriteLine("S.   Switch to shopping cart interface");
             Console.WriteLine("M.   See Menu");
         }
 
-        static void ShoppingMenu()
-        {
-            Console.WriteLine("Welcome to the shopping interface");
-            Console.WriteLine("A.   Add inventory item to cart");
-            Console.WriteLine("R.   Read all shopping cart item");
-            Console.WriteLine("U.   Update quanity in shopping cart");
-            Console.WriteLine("D.   Delete an item from shopping cart");
-            Console.WriteLine("Q.   Quit and check out");
-            Console.WriteLine("V.   View your cart");
-            Console.WriteLine("M.   See Menu");
-        }
-        static void UpdateQuanity(Products f)
-        {
-            Console.WriteLine("Quanity of this item: ");        //quanity stuff here
-            do
-            {
-                f.Quanity = int.Parse(Console.ReadLine() ?? "-1");   //read in, convert string to int
-                if (f.Quanity <= 0)
-                    Console.WriteLine("Invalid number, try again.");
-            } while (f.Quanity <= 0);
-        }
-        static void UpdatePrice(Products f)
-        {
-            Console.WriteLine("Enter the price of this item: ");    //price stuff here
-            do
-            {
-                f.Price = double.Parse(Console.ReadLine() ?? "-1");   //read in, convert string to int
-                if (f.Price <= 0.0)
-                    Console.WriteLine("Invalid price, try again.");
-            } while (f.Price <= 0.0);
-        }
     }
 }

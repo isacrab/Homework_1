@@ -69,7 +69,7 @@ namespace Library.eCommerce.Services
             if (id == 0)        //same
                 return null;
 
-            Cart? cart = shoppingCart.FirstOrDefault();
+            Cart? cart = shoppingCart.FirstOrDefault(p => p?.Id == id);
             shoppingCart.Remove(cart);
 
             return cart;
